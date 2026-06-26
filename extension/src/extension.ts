@@ -595,19 +595,30 @@ export class Extension {
 	// expandVSCodeVariables expands VS Code variables in a string.
 	// Supported variables:
 	// - ${workspaceFolder} - the path of the folder opened in VS Code
-	// - ${workspaceFolderBasename} - the name of the folder opened in VS Code without any slashes (/)
+	// - ${workspaceFolder:name} - use a named workspace folder in multi-root setups
 	// - ${userHome} - the path of the user's home folder
 	expandVSCodeVariables = (str: string): string => {
-		const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-		
+		// vscode.workspace.workspaceFolders holds an array of workspaces (as you can have a multi-root setup in a single session)
+		// the first element in that array is the top level project and usually matches what people would intuitively guess to be the result
+		// if we are in a multi-root env then users can use the name of the workspace if they want to resolve paths to it
+
+  		const workspace = vscode.workspace.workspaceFolders?.[0];  // [0] holds first workspace of your session
+  		const workspaceFolders = vscode.workspace.workspaceFolders;
+
 		let expanded = str;
+
+		// if we are in a multi-root env then users can use the name of the workspace if they want to resolve paths to it
 		
 		// Expand ${workspaceFolder}
-		if (workspaceFolder) {
-			expanded = expanded.replace(/\$\{workspaceFolder\}/g, workspaceFolder.uri.fsPath);
-			expanded = expanded.replace(/\$\{workspaceFolderBasename\}/g, path.basename(workspaceFolder.uri.fsPath));
-		}
-		
+		expanded = expanded.replace(/\$\{workspaceFolder\}/g, workspace?.uri.fsPath ?? "");
+		// Expand ${workspaceFolder:name}
+		expanded = expanded.replace(/\${workspaceFolder:(.*?)}/g, function (_, name) {
+    		return (
+      			workspaceFolders?.find((workspace) => workspace.name === name)?.uri
+        		.fsPath ?? ""
+    		);
+  		});
+			
 		// Expand ${userHome}
 		const homeDir = process.env.HOME || process.env.USERPROFILE || '';
 		if (homeDir) {
@@ -630,17 +641,7 @@ export class Extension {
 		if (path.isAbsolute(expandedCommand)) {
 			return Promise.resolve(expandedCommand);
 		}
-		
-		// Handle relative paths (after variable expansion)
-		if (expandedCommand.includes(path.sep)) {
-			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-			if (!workspaceFolder) {
-				return Promise.reject(new Error('No workspace folder available to resolve relative path'));
-			}
-			const resolvedPath = path.resolve(workspaceFolder.uri.fsPath, expandedCommand);
-			return Promise.resolve(resolvedPath);
-		}
-		
+			
 		// Handle PATH-resolved commands
 		let [resolvedCommand, err] = await ve(which(expandedCommand));
 		if (err !== null) {
