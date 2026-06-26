@@ -57,6 +57,12 @@ By default, the extension uses the `cue` command from your system PATH. You can 
    ```
    ```json
    {
+     "cue.cueCommand": "${workspaceFolder:name}/some-dir/bin/cue"
+   }
+   ```
+
+   ```json
+   {
      "cue.cueCommand": "${userHome}/.local/bin/cue"
    }
    ```
@@ -84,7 +90,7 @@ By default, the extension uses the `cue` command from your system PATH. You can 
 
 **Supported VS Code variables:**
 - `${workspaceFolder}` - The path of the workspace folder
-- `${workspaceFolderBasename}` - The workspace folder name
+- `${workspaceFolder:name}` - The workspace folder named 'name' for multi-root setups
 - `${userHome}` - The user's home directory
 
 ### Other Settings
